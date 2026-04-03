@@ -8,7 +8,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func NewPostgresDB(cfg config.Config) (*sql.DB, error) {
+func NewPostgresDB() (*sql.DB, error) {
+	cfg := config.LoadDBConfig()
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost,

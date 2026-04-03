@@ -11,21 +11,37 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
-
-	postgresDB, err := db.NewPostgresDB(cfg)
+	postgresDB, err := db.NewPostgresDB()
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 
 	taskRepo := repository.NewTaskRepository(postgresDB)
-	taskService := service.NewTaskService(taskRepo)
-	taskHandler := handler.NewTaskHandler(taskService)
+	logRepo := repository.NewBlockchainLogRepository(postgresDB)
+	blockchainConfig := config.LoadBlockchainConfig()
 
-	r := router.SetupRouter(taskHandler)
+	taskPermissionSvc := service.NewTaskPermissionService(blockchainConfig.GodModeWalletAddress)
 
-	log.Printf("server is running on :%s", cfg.AppPort)
-	if err := r.Run(":" + cfg.AppPort); err != nil {
+	taskRewardVaultSvc, err := service.NewTaskRewardVaultService()
+	if err != nil {
+		log.Fatalf("failed to init task reward vault service: %v", err)
+	}
+
+	taskService := service.NewTaskService(
+		taskRepo,
+		logRepo,
+		taskPermissionSvc,
+		blockchainConfig.PlatformFeeBps,
+		taskRewardVaultSvc,
+		blockchainConfig,
+	)
+	taskHandler := handler.NewTaskHandler(taskService, taskPermissionSvc)
+	logHandler := handler.NewBlockchainLogHandler(logRepo)
+	authHandler := handler.NewAuthHandler(postgresDB)
+
+	r := router.SetupRouter(taskHandler, logHandler, authHandler)
+
+	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }
