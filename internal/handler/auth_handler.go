@@ -60,9 +60,10 @@ type SIWEVerifyResponse struct {
 }
 
 type AuthMeResponse struct {
-	Authenticated bool   `json:"authenticated"`
-	Address       string `json:"address,omitempty"`
-	ChainID       string `json:"chainId,omitempty"`
+	Authenticated    bool   `json:"authenticated"`
+	Address          string `json:"address,omitempty"`
+	ChainID          string `json:"chainId,omitempty"`
+	IsPlatformWallet bool   `json:"isPlatformWallet"`
 }
 
 type AuthLogoutResponse struct {
@@ -312,10 +313,14 @@ func (h *AuthHandler) AuthMeHandler(c *gin.Context) {
 		return
 	}
 
+	blockchainCfg := config.LoadBlockchainConfig()
+	isPlatformWallet := strings.EqualFold(session.WalletAddress, blockchainCfg.PlatformTreasuryAddr)
+
 	c.JSON(http.StatusOK, AuthMeResponse{
-		Authenticated: true,
-		Address:       session.WalletAddress,
-		ChainID:       session.ChainID,
+		Authenticated:    true,
+		Address:          session.WalletAddress,
+		ChainID:          session.ChainID,
+		IsPlatformWallet: isPlatformWallet,
 	})
 }
 

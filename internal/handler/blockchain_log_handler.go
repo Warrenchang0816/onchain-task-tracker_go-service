@@ -20,6 +20,7 @@ func NewBlockchainLogHandler(repo *repository.BlockchainLogRepository) *Blockcha
 type BlockchainLogResponse struct {
 	ID              int64  `json:"id"`
 	TaskID          string `json:"taskId"`
+	WalletAddress   string `json:"walletAddress"`
 	Action          string `json:"action"`
 	TxHash          string `json:"txHash"`
 	ChainID         int64  `json:"chainId"`
@@ -41,6 +42,7 @@ func (h *BlockchainLogHandler) GetLogs(c *gin.Context) {
 		response = append(response, BlockchainLogResponse{
 			ID:              l.ID,
 			TaskID:          l.TaskID,
+			WalletAddress:   l.WalletAddress,
 			Action:          l.Action,
 			TxHash:          l.TxHash,
 			ChainID:         l.ChainID,
