@@ -23,9 +23,11 @@ func (r *BlockchainLogRepository) Create(log model.BlockchainLog) error {
 
 func (r *BlockchainLogRepository) FindAll() ([]model.BlockchainLog, error) {
 	rows, err := r.db.Query(`
-        SELECT id, task_id, action, tx_hash, chain_id, contract_address, status, created_at
-        FROM task_blockchain_logs
-        ORDER BY created_at DESC
+        SELECT l.id, l.task_id, COALESCE(t.wallet_address, '') AS wallet_address,
+               l.action, l.tx_hash, l.chain_id, l.contract_address, l.status, l.created_at
+        FROM task_blockchain_logs l
+        LEFT JOIN tasks t ON l.task_id = t.task_id
+        ORDER BY l.created_at DESC
     `)
 	if err != nil {
 		return nil, err
@@ -36,7 +38,7 @@ func (r *BlockchainLogRepository) FindAll() ([]model.BlockchainLog, error) {
 	for rows.Next() {
 		var l model.BlockchainLog
 		if err := rows.Scan(
-			&l.ID, &l.TaskID, &l.Action, &l.TxHash,
+			&l.ID, &l.TaskID, &l.WalletAddress, &l.Action, &l.TxHash,
 			&l.ChainID, &l.ContractAddress, &l.Status, &l.CreatedAt,
 		); err != nil {
 			return nil, err
