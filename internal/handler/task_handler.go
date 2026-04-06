@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+    "log"
 	"github.com/gin-gonic/gin"
 )
 
@@ -52,10 +53,11 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 	tasks, err := h.taskService.GetTasks()
 	if err != nil {
+<<<<<<< Updated upstream
 		log.Printf("[GetTasks] error: %v", err)
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Success: false,
-			Message: "failed to get tasks",
+			Message: "failed to get tasks
 		})
 		return
 	}

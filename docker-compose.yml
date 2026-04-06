@@ -1,8 +1,20 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:15
+    container_name: db-1
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=mypassword  # <--- 加上這行，密碼隨便你設
+      - POSTGRES_DB=postgres                # 建議也順便設定資料庫名稱
+    ports:
+      - "5434:5432" # 既然你 5432 被佔用了，外面改用 5434
+
   go-service:
     build: .
+    depends_on:
+      - db
     image: go-service:1.0.0
     container_name: go-service
     restart: unless-stopped
@@ -15,6 +27,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
+
       DB_SSLMODE: "disable"
       APP_CHAIN_ID: ${APP_CHAIN_ID}
       APP_RPC_URL: ${APP_RPC_URL}
@@ -23,3 +36,4 @@ services:
       APP_GOD_MODE_WALLET_ADDRESS: ${APP_GOD_MODE_WALLET_ADDRESS}
       APP_PLATFORM_TREASURY_ADDRESS: ${APP_PLATFORM_TREASURY_ADDRESS}
       APP_PLATFORM_OPERATOR_PRIVATE_KEY: ${APP_PLATFORM_OPERATOR_PRIVATE_KEY}
+
