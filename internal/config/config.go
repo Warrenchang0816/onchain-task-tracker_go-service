@@ -22,6 +22,29 @@ func LoadDBConfig() DBConfig {
 	}
 }
 
+// Config is the unified application config (used by food/product system and main).
+type Config struct {
+	AppPort   string
+	DBHost    string
+	DBPort    string
+	DBUser    string
+	DBPass    string
+	DBName    string
+	DBSSLMode string
+}
+
+func Load() Config {
+	return Config{
+		AppPort:   GetEnv("APP_PORT", "8080"),
+		DBHost:    GetEnv("DB_HOST", "localhost"),
+		DBPort:    GetEnv("DB_PORT", "5432"),
+		DBUser:    GetEnv("DB_USER", "postgres"),
+		DBPass:    GetEnv("DB_PASS", ""),
+		DBName:    GetEnv("DB_NAME", "TASK"),
+		DBSSLMode: GetEnv("DB_SSLMODE", "disable"),
+	}
+}
+
 type SIWEConfig struct {
 	AppDomain         string
 	AppURI            string

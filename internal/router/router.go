@@ -14,6 +14,8 @@ func SetupRouter(
 	taskHandler *handler.TaskHandler,
 	logHandler *handler.BlockchainLogHandler,
 	authHandler *handler.AuthHandler,
+	productHandler *handler.ProductHandler,
+	orderHandler *handler.OrderHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -28,6 +30,18 @@ func SetupRouter(
 
 	api := r.Group("/api")
 	{
+		// 健康檢查
+		api.GET("/health", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "ok"})
+		})
+
+		// ── 身份驗證 ─────────────────────────────────────────────
+		api.POST("/auth/wallet/siwe/message", authHandler.SIWEMessageHandler)
+		api.POST("/auth/wallet/siwe/verify", authHandler.SIWEVerifyHandler)
+		api.GET("/auth/me", authHandler.AuthMeHandler)
+		api.POST("/auth/logout", authHandler.AuthLogoutHandler)
+
+		// ── 任務媒介（原有系統）──────────────────────────────────
 		publicTask := api.Group("")
 		publicTask.Use(auth.OptionalAuthMiddleware(authHandler.GetSessionRepository()))
 		{
@@ -55,12 +69,25 @@ func SetupRouter(
 			protected.PUT("/tasks/:id/fund", taskHandler.FundTask)
 		}
 
+		// 鏈上事件記錄
 		api.GET("/blockchain-logs", logHandler.GetLogs)
 
-		api.POST("/auth/wallet/siwe/message", authHandler.SIWEMessageHandler)
-		api.POST("/auth/wallet/siwe/verify", authHandler.SIWEVerifyHandler)
-		api.GET("/auth/me", authHandler.AuthMeHandler)
-		api.POST("/auth/logout", authHandler.AuthLogoutHandler)
+		// ── 餐廳即期食物販售系統（新增）──────────────────────────
+		// 商品管理 API
+		api.POST("/products", productHandler.CreateProduct)
+		api.GET("/products", productHandler.GetProducts)
+		api.GET("/products/:id", productHandler.GetProductDetail)
+		api.GET("/products/merchant/:address", productHandler.GetMerchantProducts)
+		api.PUT("/products/:id", productHandler.UpdateProduct)
+		api.PUT("/products/:id/status", productHandler.UpdateStatus)
+		api.PUT("/products/:id/quantity", productHandler.UpdateQuantity)
+
+		// 訂單管理 API
+		api.POST("/orders", orderHandler.CreateOrder)
+		api.GET("/orders/:id", orderHandler.GetOrder)
+		api.GET("/orders/customer/:address", orderHandler.GetCustomerOrders)
+		api.GET("/orders/merchant/:address", orderHandler.GetMerchantOrders)
+		api.PUT("/orders/:id/status", orderHandler.UpdateOrderStatus)
 	}
 
 	return r

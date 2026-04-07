@@ -20,14 +20,18 @@ func NewPostgresDB() (*sql.DB, error) {
 		cfg.DBSSLMode,
 	)
 
+	fmt.Printf("Connecting to database with DSN: %s\n", dsn)
+
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open database: %v", err)
 	}
 
+	fmt.Printf("Pinging database...\n")
 	if err := db.Ping(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to ping database: %v", err)
 	}
+	fmt.Printf("Database ping successful\n")
 
 	return db, nil
 }
