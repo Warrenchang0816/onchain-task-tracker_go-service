@@ -3,65 +3,64 @@ package router
 import (
 	"time"
 
-	"go-service/internal/auth"
-	"go-service/internal/handler"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"go-service/internal/handler"
 )
 
 func SetupRouter(
 	taskHandler *handler.TaskHandler,
 	logHandler *handler.BlockchainLogHandler,
 	authHandler *handler.AuthHandler,
+	nftOrderHandler *handler.NFTOrderHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"http://127.0.0.1:3000",
+		},
+		AllowMethods: []string{
+			"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Origin", "Content-Type", "Accept", "Authorization",
+		},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
-	api := r.Group("/api")
-	{
-		publicTask := api.Group("")
-		publicTask.Use(auth.OptionalAuthMiddleware(authHandler.GetSessionRepository()))
-		{
-			publicTask.GET("/tasks", taskHandler.GetTasks)
-			publicTask.GET("/tasks/:id", taskHandler.GetTask)
-		}
+	r.Static("/uploads", "./uploads")
 
-		protected := api.Group("")
-		protected.Use(auth.AuthMiddleware(authHandler.GetSessionRepository()))
-		{
-			protected.POST("/tasks", taskHandler.CreateTask)
-			protected.PUT("/tasks/:id", taskHandler.UpdateTask)
-			protected.PUT("/tasks/:id/status", taskHandler.UpdateTaskStatus)
+	// Task routes
+	r.GET("/api/tasks", taskHandler.GetTasks)
+	r.GET("/api/tasks/:id", taskHandler.GetTask)
+	r.POST("/api/tasks", taskHandler.CreateTask)
+	r.PUT("/api/tasks/:id", taskHandler.UpdateTask)
+	r.PATCH("/api/tasks/:id/status", taskHandler.UpdateTaskStatus)
+	r.POST("/api/tasks/:id/accept", taskHandler.AcceptTask)
+	r.POST("/api/tasks/:id/cancel", taskHandler.CancelTask)
+	r.POST("/api/tasks/:id/submit", taskHandler.SubmitTask)
+	r.POST("/api/tasks/:id/approve", taskHandler.ApproveTask)
+	r.POST("/api/tasks/:id/claim", taskHandler.ClaimReward)
+	r.POST("/api/tasks/:id/mark-funded", taskHandler.MarkTaskFunded)
+	r.POST("/api/tasks/:id/mark-claimed-onchain", taskHandler.MarkTaskClaimedOnchain)
 
-			protected.PUT("/tasks/:id/accept", taskHandler.AcceptTask)
-			protected.PUT("/tasks/:id/cancel", taskHandler.CancelTask)
-			protected.POST("/tasks/:id/submissions", taskHandler.SubmitTask)
+	// Blockchain log routes
+	r.GET("/api/blockchain-logs", logHandler.GetLogs)
 
-			protected.PUT("/tasks/:id/approve", taskHandler.ApproveTask)
-			protected.POST("/tasks/:id/claim", taskHandler.ClaimReward)
+	// Auth routes
+	r.POST("/api/auth/wallet/siwe/message", authHandler.SIWEMessageHandler)
+	r.POST("/api/auth/wallet/siwe/verify", authHandler.SIWEVerifyHandler)
+	r.GET("/api/auth/me", authHandler.AuthMeHandler)
+	r.POST("/api/auth/logout", authHandler.AuthLogoutHandler)
 
-			protected.POST("/tasks/:id/onchain/funded", taskHandler.MarkTaskFunded)
-			protected.POST("/tasks/:id/onchain/claimed", taskHandler.MarkTaskClaimedOnchain)
-
-			protected.PUT("/tasks/:id/fund", taskHandler.FundTask)
-		}
-
-		api.GET("/blockchain-logs", logHandler.GetLogs)
-
-		api.POST("/auth/wallet/siwe/message", authHandler.SIWEMessageHandler)
-		api.POST("/auth/wallet/siwe/verify", authHandler.SIWEVerifyHandler)
-		api.GET("/auth/me", authHandler.AuthMeHandler)
-		api.POST("/auth/logout", authHandler.AuthLogoutHandler)
-	}
+	// Upload + NFT order routes
+	r.POST("/api/upload", handler.UploadFile)
+	r.POST("/api/nft-orders", nftOrderHandler.CreateNFTOrder)
+	r.POST("/api/nft-orders/:id/purchase", nftOrderHandler.MarkNFTOrderPurchased)
+	r.GET("/api/nft-orders", nftOrderHandler.GetNFTOrders)
 
 	return r
 }

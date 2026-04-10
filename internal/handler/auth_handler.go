@@ -114,11 +114,13 @@ func (h *AuthHandler) SIWEMessageHandler(c *gin.Context) {
 	expiredAt := time.Now().UTC().Add(time.Duration(nonceExpireSeconds) * time.Second)
 
 	if err := h.nonceRepository.Create(checksumAddress, nonce, expiredAt); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to save nonce",
-		})
-		return
-	}
+    log.Println("failed to save nonce:", err) 
+    c.JSON(http.StatusInternalServerError, gin.H{
+        "error": "failed to save nonce",
+    })
+    return
+}
+
 
 	message := auth.BuildSIWEMessage(checksumAddress, nonce, cfg)
 
@@ -237,12 +239,13 @@ func (h *AuthHandler) SIWEVerifyHandler(c *gin.Context) {
 	sessionExpiredAt := time.Now().UTC().Add(time.Duration(sessionExpireSeconds) * time.Second)
 
 	sessionToken, err := h.sessionRepository.Create(checksumAddress, cfg.SIWEChainID, sessionExpiredAt)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to create session",
-		})
-		return
-	}
+if err != nil {
+    log.Println("failed to create session:", err)
+    c.JSON(http.StatusInternalServerError, gin.H{
+        "error": "failed to create session",
+    })
+    return
+}
 
 	secureCookie := strings.EqualFold(cfg.AuthSessionSecure, "true")
 

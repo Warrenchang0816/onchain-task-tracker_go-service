@@ -1,26 +1,40 @@
 package main
 
 import (
+	"log"
+
 	"go-service/internal/config"
-	"go-service/internal/db"
+	appdb "go-service/internal/db"
 	"go-service/internal/handler"
 	"go-service/internal/repository"
-	"go-service/internal/router"
+	appRouter "go-service/internal/router"
 	"go-service/internal/service"
-	"log"
 )
 
 func main() {
-	postgresDB, err := db.NewPostgresDB()
+	postgresDB, err := appdb.NewPostgresDB()
 	if err != nil {
 		log.Fatalf("failed to connect database: %v", err)
 	}
+	defer postgresDB.Close()
+
+	log.Println("✅ DB connected")
+
+	if err := appdb.RunMigrations(postgresDB, "./migrations"); err != nil {
+		log.Fatalf("migration failed: %v", err)
+	}
+
+	log.Println("✅ migrations completed")
+
+	blockchainConfig := config.LoadBlockchainConfig()
 
 	taskRepo := repository.NewTaskRepository(postgresDB)
 	logRepo := repository.NewBlockchainLogRepository(postgresDB)
-	blockchainConfig := config.LoadBlockchainConfig()
+	nftOrderRepo := repository.NewNFTOrderRepository(postgresDB)
 
-	taskPermissionSvc := service.NewTaskPermissionService(blockchainConfig.GodModeWalletAddress)
+	taskPermissionSvc := service.NewTaskPermissionService(
+		blockchainConfig.GodModeWalletAddress,
+	)
 
 	taskRewardVaultSvc, err := service.NewTaskRewardVaultService()
 	if err != nil {
@@ -35,11 +49,15 @@ func main() {
 		taskRewardVaultSvc,
 		blockchainConfig,
 	)
+
 	taskHandler := handler.NewTaskHandler(taskService, taskPermissionSvc)
 	logHandler := handler.NewBlockchainLogHandler(logRepo)
 	authHandler := handler.NewAuthHandler(postgresDB)
+	nftOrderHandler := handler.NewNFTOrderHandler(nftOrderRepo)
 
-	r := router.SetupRouter(taskHandler, logHandler, authHandler)
+	r := appRouter.SetupRouter(taskHandler, logHandler, authHandler, nftOrderHandler)
+
+	log.Println("🚀 server starting on :8080")
 
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("failed to start server: %v", err)

@@ -31,3 +31,28 @@ func NewPostgresDB() (*sql.DB, error) {
 
 	return db, nil
 }
+
+func InitTables(db *sql.DB) error {
+	queries := []string{
+		`
+		CREATE TABLE IF NOT EXISTS nft_orders (
+			id SERIAL PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL,
+			image TEXT NOT NULL DEFAULT '',
+			price TEXT NOT NULL DEFAULT '',
+			recipient_wallet TEXT NOT NULL DEFAULT '',
+			creator_wallet TEXT NOT NULL DEFAULT '',
+			created_at TIMESTAMP NOT NULL DEFAULT NOW()
+		);
+		`,
+	}
+
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

@@ -282,6 +282,13 @@ func (s *TaskService) MarkTaskFunded(id int64, txHash string) error {
 		return err
 	}
 
+	if task.OnchainStatus == string(model.OnchainStatusFunded) ||
+		task.OnchainStatus == string(model.OnchainStatusAssigned) ||
+		task.OnchainStatus == string(model.OnchainStatusApproved) ||
+		task.OnchainStatus == string(model.OnchainStatusClaimed) {
+		return errors.New("already funded")
+	}
+
 	if err := s.taskRepo.UpdateFundInfo(
 		id,
 		s.blockchainConfig.ChainID,
@@ -295,9 +302,13 @@ func (s *TaskService) MarkTaskFunded(id int64, txHash string) error {
 
 	s.writeLog(task.TaskID, "FUND", txHash, "SUCCESS")
 
-	// If task was already accepted before funding, call assignWorker now
+	// If task was already accepted before funding, call assignWorker now.
 	if task.AssigneeWalletAddress != nil && *task.AssigneeWalletAddress != "" {
-		assignTxHash, err := s.taskRewardVaultSvc.AssignWorker(context.Background(), task.TaskID, *task.AssigneeWalletAddress)
+		assignTxHash, err := s.taskRewardVaultSvc.AssignWorker(
+			context.Background(),
+			task.TaskID,
+			*task.AssigneeWalletAddress,
+		)
 		if err != nil {
 			return err
 		}

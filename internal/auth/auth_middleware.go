@@ -13,7 +13,6 @@ import (
 
 const (
 	ContextSessionToken  = "sessionToken"
-	ContextWalletAddress = "walletAddress"
 	ContextChainID       = "chainId"
 )
 

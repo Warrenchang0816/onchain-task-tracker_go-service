@@ -1,34 +1,41 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:15
-    container_name: db-1
+    container_name: go-service-db
+    restart: unless-stopped
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=mypassword  # <--- 加上這行，密碼隨便你設
-      - POSTGRES_DB=postgres                # 建議也順便設定資料庫名稱
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: postgres
     ports:
-      - "5434:5432" # 既然你 5432 被佔用了，外面改用 5434
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   go-service:
     build: .
-    depends_on:
-      - db
     image: go-service:1.0.0
-    container_name: go-service
+    container_name: go-service-app
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8081:8080"
     environment:
-      APP_PORT: ${APP_PORT}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
-      DB_NAME: ${DB_NAME}
-
-      DB_SSLMODE: "disable"
+      APP_PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: mypassword
+      DB_NAME: postgres
+      DB_SSLMODE: disable
       APP_CHAIN_ID: ${APP_CHAIN_ID}
       APP_RPC_URL: ${APP_RPC_URL}
       APP_REWARD_VAULT_ADDRESS: ${APP_REWARD_VAULT_ADDRESS}
@@ -36,4 +43,8 @@ services:
       APP_GOD_MODE_WALLET_ADDRESS: ${APP_GOD_MODE_WALLET_ADDRESS}
       APP_PLATFORM_TREASURY_ADDRESS: ${APP_PLATFORM_TREASURY_ADDRESS}
       APP_PLATFORM_OPERATOR_PRIVATE_KEY: ${APP_PLATFORM_OPERATOR_PRIVATE_KEY}
+    volumes:
+      - ./uploads:/app/uploads
 
+volumes:
+  postgres_data:

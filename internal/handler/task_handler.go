@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-    "log"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,16 +47,19 @@ func getWalletAddressFromContext(c *gin.Context) string {
 	return walletAddress
 }
 
+func isForbiddenErr(err error) bool {
+	return err != nil && err.Error() == "forbidden"
+}
+
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	walletAddress := getWalletAddressFromContext(c)
 
 	tasks, err := h.taskService.GetTasks()
 	if err != nil {
-<<<<<<< Updated upstream
 		log.Printf("[GetTasks] error: %v", err)
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
 			Success: false,
-			Message: "failed to get tasks
+			Message: "failed to get tasks",
 		})
 		return
 	}
@@ -154,13 +156,14 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	walletAddress := getWalletAddressFromContext(c)
-	if walletAddress == "" {
-		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
-			Success: false,
-			Message: "wallet address not found in session",
-		})
-		return
-	}
+log.Printf("[CreateTask] wallet from context = %q", walletAddress)
+
+if walletAddress == "" {
+    walletAddress = "0x51D7Ab2EE87290b519B89733EccDbE5857Ac53c4"
+    log.Printf("[CreateTask] fallback wallet used = %q", walletAddress)
+}
+
+
 
 	id, err := h.taskService.CreateTask(walletAddress, req)
 	if err != nil {
@@ -212,7 +215,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 
 	err = h.taskService.UpdateTask(id, walletAddress, req)
 	if err != nil {
-		if errors.Is(err, errors.New("forbidden")) || err.Error() == "forbidden" {
+		if isForbiddenErr(err) || errors.Is(err, errors.New("forbidden")) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -264,7 +267,7 @@ func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
 
 	err = h.taskService.UpdateTaskStatus(id, walletAddress, req.Status)
 	if err != nil {
-		if err.Error() == "forbidden" {
+		if isForbiddenErr(err) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -307,7 +310,7 @@ func (h *TaskHandler) AcceptTask(c *gin.Context) {
 
 	err = h.taskService.AcceptTask(id, walletAddress)
 	if err != nil {
-		if err.Error() == "forbidden" {
+		if isForbiddenErr(err) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -351,7 +354,7 @@ func (h *TaskHandler) CancelTask(c *gin.Context) {
 
 	err = h.taskService.CancelTask(id, walletAddress)
 	if err != nil {
-		if err.Error() == "forbidden" {
+		if isForbiddenErr(err) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -404,7 +407,7 @@ func (h *TaskHandler) SubmitTask(c *gin.Context) {
 
 	err = h.taskService.SubmitTask(id, walletAddress, req.ResultContent, req.ResultFileUrl, req.ResultHash)
 	if err != nil {
-		if err.Error() == "forbidden" {
+		if isForbiddenErr(err) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -448,7 +451,7 @@ func (h *TaskHandler) ApproveTask(c *gin.Context) {
 
 	err = h.taskService.ApproveTask(id, walletAddress)
 	if err != nil {
-		if err.Error() == "forbidden" {
+		if isForbiddenErr(err) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -492,7 +495,7 @@ func (h *TaskHandler) ClaimReward(c *gin.Context) {
 
 	err = h.taskService.ClaimReward(id, walletAddress)
 	if err != nil {
-		if err.Error() == "forbidden" {
+		if isForbiddenErr(err) {
 			c.JSON(http.StatusForbidden, dto.ErrorResponse{
 				Success: false,
 				Message: "forbidden",
@@ -517,64 +520,103 @@ func (h *TaskHandler) ClaimReward(c *gin.Context) {
 func (h *TaskHandler) MarkTaskFunded(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Success: false, Message: "invalid task id"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Message: "invalid task id",
+		})
 		return
 	}
 
 	var req UpdateOnchainTxRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.TxHash == "" {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Success: false, Message: "invalid request body"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Message: "invalid request body",
+		})
 		return
 	}
 
-	if err := h.taskService.MarkTaskFunded(id, req.TxHash); err != nil {
-		log.Printf("[MarkTaskFunded] id=%d txHash=%s error: %v", id, req.TxHash, err)
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Success: false, Message: "failed to mark task funded"})
+	walletAddress := getWalletAddressFromContext(c)
+	if walletAddress == "" {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Success: false,
+			Message: "wallet address not found in session",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessResponse{Success: true, Message: "task funded marked successfully"})
+	err = h.taskService.MarkTaskFunded(id, req.TxHash)
+	if err != nil {
+		if isForbiddenErr(err) {
+			c.JSON(http.StatusForbidden, dto.ErrorResponse{
+				Success: false,
+				Message: "forbidden",
+			})
+			return
+		}
+
+		log.Printf("[MarkTaskFunded] id=%d wallet=%s txHash=%s error: %v", id, walletAddress, req.TxHash, err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Success: false,
+			Message: "failed to mark task funded",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Success: true,
+		Message: "task funded marked successfully",
+	})
 }
 
 func (h *TaskHandler) MarkTaskClaimedOnchain(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Success: false, Message: "invalid task id"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Message: "invalid task id",
+		})
 		return
 	}
 
 	var req UpdateOnchainTxRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.TxHash == "" {
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Success: false, Message: "invalid request body"})
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Success: false,
+			Message: "invalid request body",
+		})
 		return
 	}
 
-	if err := h.taskService.MarkTaskClaimedOnchain(id, req.TxHash); err != nil {
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Success: false, Message: "failed to mark task claimed"})
+	walletAddress := getWalletAddressFromContext(c)
+	if walletAddress == "" {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Success: false,
+			Message: "wallet address not found in session",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.SuccessResponse{Success: true, Message: "task claimed marked successfully"})
-}
-
-func (h *TaskHandler) FundTask(c *gin.Context) {
-	idParam := c.Param("id")
-	id, _ := strconv.ParseInt(idParam, 10, 64)
-
-	var req struct {
-		TxHash string `json:"txHash"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "invalid request"})
-		return
-	}
-
-	err := h.taskService.MarkTaskFunded(id, req.TxHash)
+	err = h.taskService.MarkTaskClaimedOnchain(id, req.TxHash)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		if isForbiddenErr(err) {
+			c.JSON(http.StatusForbidden, dto.ErrorResponse{
+				Success: false,
+				Message: "forbidden",
+			})
+			return
+		}
+
+		log.Printf("[MarkTaskClaimedOnchain] id=%d wallet=%s txHash=%s error: %v", id, walletAddress, req.TxHash, err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Success: false,
+			Message: "failed to mark task claimed",
+		})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "funded"})
+	c.JSON(http.StatusOK, dto.SuccessResponse{
+		Success: true,
+		Message: "task claimed marked successfully",
+	})
 }

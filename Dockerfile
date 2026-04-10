@@ -1,3 +1,4 @@
+# ---------- build ----------
 FROM golang:1.25.4 AS builder
 
 WORKDIR /app
@@ -9,6 +10,7 @@ COPY . .
 
 RUN go build -o server ./cmd/server
 
+# ---------- run ----------
 FROM debian:stable-slim
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -16,7 +18,6 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 WORKDIR /app
 
 COPY --from=builder /app/server /app/server
-
-EXPOSE 8080
+COPY migrations /app/migrations
 
 CMD ["/app/server"]
