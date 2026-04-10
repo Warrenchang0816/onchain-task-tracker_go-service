@@ -1,41 +1,24 @@
+name: nft-marketplace-go-service
 services:
-  db:
-    image: postgres:15
-    container_name: go-service-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: postgres
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+
 
   go-service:
     build: .
-    image: go-service:1.0.0
-    container_name: go-service-app
+    image: nft-marketplace-go-service:1.0.0
+    container_name: nft-marketplace-go-service-app
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     ports:
-      - "8081:8080"
+      - "8083:8083"
+    env_file:
+      - nft-marketplace.env
     environment:
-      APP_PORT: 8080
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASS: mypassword
-      DB_NAME: postgres
-      DB_SSLMODE: disable
+      APP_PORT: "8083"
+      DB_HOST: "host.docker.internal"
+      DB_PORT: "5432"
+      DB_USER: "postgres"
+      DB_PASS: ${DB_PASS}
+      DB_NAME: "NFT_MARKETPLACE"
+      DB_SSLMODE: "disable"
       APP_CHAIN_ID: ${APP_CHAIN_ID}
       APP_RPC_URL: ${APP_RPC_URL}
       APP_REWARD_VAULT_ADDRESS: ${APP_REWARD_VAULT_ADDRESS}
@@ -43,8 +26,3 @@ services:
       APP_GOD_MODE_WALLET_ADDRESS: ${APP_GOD_MODE_WALLET_ADDRESS}
       APP_PLATFORM_TREASURY_ADDRESS: ${APP_PLATFORM_TREASURY_ADDRESS}
       APP_PLATFORM_OPERATOR_PRIVATE_KEY: ${APP_PLATFORM_OPERATOR_PRIVATE_KEY}
-    volumes:
-      - ./uploads:/app/uploads
-
-volumes:
-  postgres_data:
